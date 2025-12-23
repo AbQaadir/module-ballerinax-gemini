@@ -304,7 +304,7 @@ dependencies = [
 [[package]]
 org = "qaadir"
 name = "gemini"
-version = "3.5.0"
+version = "3.5.1"
 dependencies = [
 	{org = "ballerina", name = "constraint"},
 	{org = "ballerina", name = "data.jsondata"},
