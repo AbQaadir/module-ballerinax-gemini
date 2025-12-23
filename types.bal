@@ -3075,6 +3075,7 @@ public type ImportFileOperation record {
 
 # Response for file upload (media) which wraps the File resource.
 public type FileUploadResponse record {
+    # The uploaded file.
     FileResource file;
 };
 
@@ -3117,6 +3118,7 @@ public type FileResource record {
 # This strictly mirrors the one in types.bal but adds fileSearch.
 public type ToolWithFileSearch record {
     *Tool;
+    # The file search tool.
     FileSearch fileSearch?;
 };
 
