@@ -1,5 +1,5 @@
 [package]
-org = "qaadi"
+org = "qaadir"
 name = "gemini"
-version = "0.1.0"
+version = "3.0.0"
 distribution = "2201.13.1"
