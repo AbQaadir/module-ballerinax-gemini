@@ -814,6 +814,25 @@ public isolated client class Client {
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
 
+    # Creates a new interaction.
+    #
+    # + payload - The `CreateInteractionRequest`.
+    # + headers - Optional headers.
+    # + return - The created `Interaction` or an error.
+    remote isolated function interactionsCreate(CreateInteractionRequest payload, map<string|string[]> headers = {}) returns Interaction|error {
+        string resourcePath = string `/v1beta/interactions`;
+        map<anydata> headerValues = {...headers};
+        headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
+        map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
+        
+        http:Request request = new;
+        json jsonBody = jsondata:toJson(payload);
+        request.setPayload(jsonBody, "application/json");
+        
+        return self.clientEp->post(resourcePath, request, httpHeaders);
+    }
+
+
     # Generates a response from the model given an input message.
     #
     # + model - The model id.
@@ -1108,6 +1127,87 @@ public isolated client class Client {
         http:Request request = new;
         json jsonBody = jsondata:toJson(payload);
         request.setPayload(jsonBody, "application/json");
+        return self.clientEp->post(resourcePath, request, httpHeaders);
+    }
+
+    # Creates a File Search Store.
+    #
+    # + payload - The creation request.
+    # + return - The created store or error.
+    remote isolated function fileSearchStoresCreate(CreateFileSearchStoreRequest payload) returns FileSearchStore|error {
+        string resourcePath = string `/v1beta/fileSearchStores`;
+        map<anydata> headerValues = {};
+        headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
+        map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
+        
+        http:Request request = new;
+        if payload.fileSearchStoreId != () {
+            resourcePath += "?file_search_store_id=" + payload.fileSearchStoreId.toString();
+        }
+        
+        json jsonBody = payload.fileSearchStore != () ? jsondata:toJson(payload.fileSearchStore) : {};
+        request.setPayload(jsonBody, "application/json");
+        
+        return self.clientEp->post(resourcePath, request, httpHeaders);
+    }
+
+    # Imports a file into a File Search Store.
+    #
+    # + storeName - The resource name of the store.
+    # + payload - The import request.
+    # + return - The response or error.
+    remote isolated function fileSearchStoresImportFile(string storeName, ImportFileRequest payload) returns ImportFileOperation|error {
+        string resourcePath = string `/v1beta/${storeName}:importFile`;
+        map<anydata> headerValues = {};
+        headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
+        map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
+        
+        http:Request request = new;
+        json jsonBody = jsondata:toJson(payload);
+        request.setPayload(jsonBody, "application/json");
+        
+        return self.clientEp->post(resourcePath, request, httpHeaders);
+    }
+    
+    # Uploads a file (simple media upload).
+    #
+    # + fileContent - The raw content of the file.
+    # + mimeType - The MIME type.
+    # + displayName - Optional display name.
+    # + return - The uploaded file resource wrapped in FileUploadResponse.
+    remote isolated function filesUploadBytes(byte[] fileContent, string mimeType, string? displayName = ()) returns FileUploadResponse|error {
+        string resourcePath = "/upload/v1beta/files?uploadType=media";
+        
+        map<anydata> headerValues = {};
+        headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
+        headerValues["X-Goog-Upload-Protocol"] = "raw";
+        headerValues["Content-Type"] = mimeType;
+        if displayName != () {
+            headerValues["X-Goog-Upload-Header-Content-Disposition"] = string `attachment; filename="${displayName}"`;
+        }
+        map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
+        
+        http:Request request = new;
+        request.setBinaryPayload(fileContent);
+        
+        return self.clientEp->post(resourcePath, request, httpHeaders);
+    }
+
+    # Generates a response from the model using the File Search tool.
+    #
+    # + model - The model name.
+    # + payload - The request payload with File Search tool.
+    # + return - The response or error.
+    remote isolated function generateContentWithFileSearch(string model, GenerateContentRequestWithFileSearch payload) returns GenerateContentResponse|error {
+        string resourcePath = string `/v1beta/models/${model}:generateContent`;
+        map<anydata> headerValues = {};
+        headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
+        map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
+        
+        http:Request request = new;
+        json jsonBody = jsondata:toJson(payload);
+        request.setPayload(jsonBody, "application/json");
+        
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
 }

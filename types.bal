@@ -252,7 +252,7 @@ public type UrlMetadata record {
     # Retrieved url by the tool.
     string retrievedUrl?;
     # Status of the url retrieval.
-    int urlRetrievalStatus?;
+    string urlRetrievalStatus?;
 };
 
 # Counts the number of tokens in the `prompt` sent to a model.
@@ -565,7 +565,7 @@ public type TunedModel record {
     # creating the model.
     int:Signed32 topK?;
     # Output only. The state of the tuned model.
-    int state?;
+    string state?;
     # Output only. The timestamp when this model was created.
     string createTime?;
     # Output only. The timestamp when this model was updated.
@@ -668,7 +668,7 @@ public type GenerateContentRequest record {
     # Required. The name of the `Model` to use for generating the completion.
     #
     # Format: `models/{model}`.
-    string model;
+    string model?;
     # Optional. Developer set [system
     # instruction(s)](https://ai.google.dev/gemini-api/docs/system-instructions).
     # Currently, text only.
@@ -744,9 +744,9 @@ public type ApiKeysConfig record {|
 # Files are imported to Semantic Retrieval corpora using the ImportFile API.
 public type FileSearch record {
     # Required. Semantic retrieval resources to retrieve from.
-    # Currently only supports one corpus. In the future we may open up multiple
-    # corpora support.
-    FileSearch_RetrievalResource[] retrievalResources;
+    # Names of the File Search Stores to use.
+    # Example: `fileSearchStores/my-store`
+    string[] fileSearchStoreNames;
     # Optional. The configuration for the retrieval.
     FileSearch_RetrievalConfig retrievalConfig?;
 };
@@ -1418,7 +1418,7 @@ public type BatchEmbedTextRequest record {
 # object](https://spec.openapis.org/oas/v3.0.3#schema).
 public type Schema record {
     # Required. Data type.
-    int 'type;
+    string 'type;
     # Optional. The format of the data. Any value is allowed, but most do not
     # trigger any special functionality.
     string format?;
@@ -2017,7 +2017,7 @@ public type BatchEmbedContentsResponse record {
 # also be generated.
 public type ExecutableCode record {
     # Required. Programming language of the `code`.
-    int language;
+    string language;
     # Required. The code to be executed.
     string code;
 };
@@ -2368,7 +2368,7 @@ public type LogprobsResult_Candidate record {
 # containing the `ExecutableCode`.
 public type CodeExecutionResult record {
     # Required. Outcome of the code execution.
-    int outcome;
+    string outcome;
     # Optional. Contains stdout when code execution is successful, stderr or
     # other description otherwise.
     string output?;
@@ -2921,4 +2921,223 @@ public type UpdateChunkRequest record {
     # Required. The list of fields to update.
     # Currently, this only supports updating `custom_metadata` and `data`.
     string updateMask;
+};
+
+# Represents the request body for creating an interaction.
+public type CreateInteractionRequest record {
+    # Required. The model or agent to use.
+    # Example: `gemini-3-flash-preview` or `deep-research-pro-preview-12-2025`
+    string model?;
+    
+    # Optional. The agent to use. Only one of `model` or `agent` can be provided.
+    string agent?;
+
+    # Required. The input for the interaction.
+    # Can be a string or a list of Content objects (history).
+    # Since Ballerina strict typing, we'll try to support the flexible input via json or specific types.
+    # The API docs say: string, list of content objects, or list of turns.
+    # For simplicity and strong typing, we will mostly use `Content[]` or `string`. 
+    # However, to be safe with `json` serialization given the variation, we can allow `json`.
+    # But usually `Content[]` covers the chat history case and `string` covers simple prompt.
+    string|Content[]|ValidationData input;
+
+    # Optional. Tools to be used.
+    Tool[] tools?;
+
+    # Optional. Tool configuration.
+    ToolConfig toolConfig?;
+
+    # Optional. Generation config.
+    GenerationConfig generationConfig?;
+
+    # Optional. Safety settings.
+    SafetySetting[] safetySettings?;
+
+    # Optional. ID of the previous interaction to continue conversation.
+    string previousInteractionId?;
+
+    # Optional. Whether to run in background (for agents).
+    boolean background?;
+
+    # Optional. Whether to store the interaction. Default: true.
+    boolean store?;
+    
+    # Optional. System instruction.
+    Content|string systemInstruction?;
+
+    # Optional. Response modalities.
+    string[] responseModalities?;
+    
+    # Optional. Response format (JSON schema).
+    json responseFormat?;
+
+    # Optional. Stream response.
+    boolean 'stream?;
+};
+
+
+# Represents the response/resource of an Interaction.
+public type Interaction record {
+    # Unique identifier.
+    string id?;
+    
+    # The model or agent used.
+    string model?;
+
+    # The agent used.
+    string agent?;
+
+    # The inputs provided.
+    Content[] input?;
+
+    # The model's responses.
+    Content[] outputs?;
+
+    # The tools used.
+    Tool[] tools?;
+
+    # ID of the previous interaction.
+    string previousInteractionId?;
+
+    # Status of the interaction.
+    string status?;
+
+    # Whether it is a background interaction.
+    boolean background?;
+
+    # Whether it is stored.
+    boolean store?;
+    
+    # Token usage.
+    InteractionUsage usage?;
+};
+
+# Token usage for interaction.
+public type InteractionUsage record {
+    # Total tokens.
+    int totalTokens?;
+    
+    # Prompt tokens.
+    int promptTokens?;
+
+    # Candidates tokens.
+    int candidatesTokens?;
+};
+
+
+# Helper type for flexible input if needed, or specialized input structures.
+# For now `Content` from `types.bal` should suffice for structured history.
+# We might need a union if `input` can be just a simple string in JSON.
+# In `CreateInteractionRequest` above, `string|Content[]` is used.
+
+# Validation Data type for structured output examples or similar if needed.
+public type ValidationData json;
+
+# A File Search Store.
+public type FileSearchStore record {
+    # Identifier. The resource name of the File Search Store.
+    # Format: `fileSearchStores/{file_search_store_id}`
+    string name?;
+    
+    # Optional. The user-supplied display name of the File Search Store.
+    string displayName?;
+};
+
+# Request to create a File Search Store.
+public type CreateFileSearchStoreRequest record {
+    # Optional. The initial configuration for the File Search Store.
+    FileSearchStore fileSearchStore?;
+
+    # Optional. The ID to use for the File Search Store.
+    # If not provided, a random ID will be generated.
+    string fileSearchStoreId?;
+};
+
+# Request to import a file into a File Search Store.
+public type ImportFileRequest record {
+    # Required. The resource name of the generic file to import.
+    # Format: `files/{file_id}`
+    string fileName;
+};
+
+# Response for importing a file (Long Running Operation).
+public type ImportFileOperation record {
+    # The name of the operation resource.
+    string name;
+    # If the value is `false`, it means the operation is still in progress.
+    # If `true`, the operation is completed, and either `error` or `response` is available.
+    boolean done?;
+    # The error result of the operation in case of failure or cancellation.
+    record {} 'error?;
+    # The normal response of the operation in case of success.
+    record {} response?;
+};
+
+# Response for file upload (media) which wraps the File resource.
+public type FileUploadResponse record {
+    FileResource file;
+};
+
+# A File resource (custom definition to handle API response variations).
+public type FileResource record {
+    # Immutable. Identifier. The `File` resource name.
+    # Format: `files/{file_id}`
+    string name?;
+    
+    # Optional. The human-readable display name for the `File`.
+    string displayName?;
+    
+    # Output only. MIME type of the file.
+    string mimeType?;
+    
+    # Output only. Size of the file in bytes.
+    string sizeBytes?;
+    
+    # Output only. Creation time.
+    string createTime?;
+    
+    # Output only. Update time.
+    string updateTime?;
+    
+    # Output only. Expiration time.
+    string expirationTime?;
+    
+    # Output only. SHA-256 hash.
+    string sha256Hash?;
+    
+    # Output only. The URI.
+    string uri?;
+    
+    # Output only. State of the file.
+    # Changed from int to string based on API behavior.
+    string state?;
+};
+
+# Extended Tool definition for File Search.
+# This strictly mirrors the one in types.bal but adds fileSearch.
+public type ToolWithFileSearch record {
+    *Tool;
+    FileSearch fileSearch?;
+};
+
+# Extended Generation Config to support File Search tool.
+# We shadow GenerateContentRequest to use ToolWithFileSearch
+public type GenerateContentRequestWithFileSearch record {
+    # Required. The name of the model to use.
+    # Format: `name=models/{model}`.
+    string model?;
+    # Optional. The system instruction that will be provided to the model.
+    Content systemInstruction?;
+    # Required. The contents of the conversation.
+    Content[] contents;
+    # Optional. The tools that will be provided to the model.
+    ToolWithFileSearch[] tools?;
+    # Optional. The tool configuration.
+    ToolConfig toolConfig?;
+    # Optional. The safety settings.
+    SafetySetting[] safetySettings?;
+    # Optional. The generation configuration.
+    GenerationConfig generationConfig?;
+    # Optional. The cached content.
+    string cachedContent?;
 };
