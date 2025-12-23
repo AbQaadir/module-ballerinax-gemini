@@ -2571,7 +2571,7 @@ public type ContentEmbedding record {
 # Computer Use tool type.
 public type Tool_ComputerUse record {
     # Required. The environment being operated.
-    int environment;
+    string environment;
     # Optional. By default, predefined functions are included in the final
     # model call. Some of them can be explicitly excluded from being
     # automatically included. This can serve two purposes:

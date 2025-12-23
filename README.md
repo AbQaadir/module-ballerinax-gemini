@@ -15,9 +15,10 @@ The connector provides the following features:
 - **[Grounding with Google Search](#grounding-with-google-search):** Access real-time data with citations.
 - **[Code Execution](#code-execution):** Generate and run Python code for complex tasks.
 - **[Grounding with Google Maps](#grounding-with-google-maps):** Ground responses in real-world data using Google Maps.
+- **[URL Context](#url-context):** Provide context via URLs for the model to access.
 - **[Interactions API](#interactions-api):** Multi-turn conversations and stateful interactions with models and agents.
 - **[File Search](#file-search):** Retrieve relevant information from documents to answer questions (Retrieval Augmented Generation).
-- **[URL Context](#url-context):** Provide context via URLs for the model to access.
+- **[Computer Use](#computer-use):** Simulate browser interactions and actions.
 
 
 # Quickstart Guide
@@ -768,4 +769,83 @@ gemini:GenerateContentResponse response = check geminiClient->generateContentWit
 if response.candidates is gemini:Candidate[] && response.candidates.length() > 0 {
      io:println("Answer: ", response.candidates[0].content?.parts[0].text);
 }
+```
+
+## Computer Use
+
+The Computer Use capability allows the model to "see" a screen (via screenshots) and "act" by issuing specific UI commands (click, type, etc.).
+
+> **Note:** Ballerina does not have a native browser automation library like Playwright. This example demonstrates the **Agent Loop Logic** (API interaction, response parsing, state management) by **simulating** the browser execution.
+
+### Step 1: Initialize Client
+Use a model that supports Computer Use (e.g., `gemini-2.5-computer-use-preview-10-2025`).
+
+```ballerina
+configurable string geminiAPIKey = ?;
+string model = "gemini-2.5-computer-use-preview-10-2025";
+
+gemini:Client geminiClient = check new ({
+    xGoogAPIKey: geminiAPIKey
+});
+```
+
+### Step 2: Define the Computer Use Tool
+Enable the `computerUse` tool with the `ENVIRONMENT_BROWSER` setting.
+
+```ballerina
+gemini:Tool_ComputerUse computerUseConfig = {
+    environment: "ENVIRONMENT_BROWSER"
+};
+
+gemini:Tool computerUseTool = {
+    computerUse: computerUseConfig
+};
+```
+
+### Step 3: Send Initial Request with Screenshot
+The protocol requires sending an initial screenshot along with the prompt.
+
+```ballerina
+// Using a dummy screenshot for demonstration
+string dummyScreenshotBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
+gemini:Part promptPart = {text: "Go to google.com and search for 'Ballerina interactions'."};
+gemini:Part imagePart = {
+    inlineData: {
+        mimeType: "image/png",
+        data: dummyScreenshotBase64
+    }
+};
+
+gemini:Content[] conversationHistory = [
+    {role: "user", parts: [promptPart, imagePart]}
+];
+```
+
+### Step 4: Run the Agent Loop
+The model will return `FunctionCall`s (e.g., `click_at`, `type_text_at`) which your application must "execute" and then send back the results via `FunctionResponse`.
+
+```ballerina
+int turnLimit = 5;
+foreach int i in 0 ..< turnLimit {
+    gemini:GenerateContentRequest request = {
+        model: model,
+        contents: conversationHistory,
+        tools: [computerUseTool]
+    };
+
+    gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent(model, request);
+    
+    // Process response...
+    gemini:Candidate[]? candidates = response.candidates;
+    if candidates is gemini:Candidate[] && candidates.length() > 0 {
+         // ... Extract FunctionCall, Execute Action, and Append to History ...
+         // See `main-computer-use.bal` for the full loop implementation.
+    }
+}
+```
+
+Run the full example:
+```bash
+bal run main-computer-use.bal
 ```
