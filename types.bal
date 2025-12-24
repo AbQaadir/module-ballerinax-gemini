@@ -266,7 +266,7 @@ public type CountTokensRequest record {
     # This name should match a model name returned by the `ListModels` method.
     #
     # Format: `models/{model}`
-    string model;
+    string model?;
     # Optional. The input given to the model as a prompt. This field is ignored
     # when `generate_content_request` is set.
     Content[] contents?;
@@ -2930,7 +2930,7 @@ public type CreateInteractionRequest record {
     # Required. The model or agent to use.
     # Example: `gemini-3-flash-preview` or `deep-research-pro-preview-12-2025`
     string model?;
-    
+
     # Optional. The agent to use. Only one of `model` or `agent` can be provided.
     string agent?;
 
@@ -2963,13 +2963,13 @@ public type CreateInteractionRequest record {
 
     # Optional. Whether to store the interaction. Default: true.
     boolean store?;
-    
+
     # Optional. System instruction.
     Content|string systemInstruction?;
 
     # Optional. Response modalities.
     string[] responseModalities?;
-    
+
     # Optional. Response format (JSON schema).
     json responseFormat?;
 
@@ -2977,12 +2977,11 @@ public type CreateInteractionRequest record {
     boolean 'stream?;
 };
 
-
 # Represents the response/resource of an Interaction.
 public type Interaction record {
     # Unique identifier.
     string id?;
-    
+
     # The model or agent used.
     string model?;
 
@@ -3009,7 +3008,7 @@ public type Interaction record {
 
     # Whether it is stored.
     boolean store?;
-    
+
     # Token usage.
     InteractionUsage usage?;
 };
@@ -3018,14 +3017,13 @@ public type Interaction record {
 public type InteractionUsage record {
     # Total tokens.
     int totalTokens?;
-    
+
     # Prompt tokens.
     int promptTokens?;
 
     # Candidates tokens.
     int candidatesTokens?;
 };
-
 
 # Helper type for flexible input if needed, or specialized input structures.
 # For now `Content` from `types.bal` should suffice for structured history.
@@ -3040,7 +3038,7 @@ public type FileSearchStore record {
     # Identifier. The resource name of the File Search Store.
     # Format: `fileSearchStores/{file_search_store_id}`
     string name?;
-    
+
     # Optional. The user-supplied display name of the File Search Store.
     string displayName?;
 };
@@ -3086,31 +3084,31 @@ public type FileResource record {
     # Immutable. Identifier. The `File` resource name.
     # Format: `files/{file_id}`
     string name?;
-    
+
     # Optional. The human-readable display name for the `File`.
     string displayName?;
-    
+
     # Output only. MIME type of the file.
     string mimeType?;
-    
+
     # Output only. Size of the file in bytes.
     string sizeBytes?;
-    
+
     # Output only. Creation time.
     string createTime?;
-    
+
     # Output only. Update time.
     string updateTime?;
-    
+
     # Output only. Expiration time.
     string expirationTime?;
-    
+
     # Output only. SHA-256 hash.
     string sha256Hash?;
-    
+
     # Output only. The URI.
     string uri?;
-    
+
     # Output only. State of the file.
     # Changed from int to string based on API behavior.
     string state?;

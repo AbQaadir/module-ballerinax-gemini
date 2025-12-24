@@ -824,14 +824,13 @@ public isolated client class Client {
         map<anydata> headerValues = {...headers};
         headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
         map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
-        
+
         http:Request request = new;
         json jsonBody = jsondata:toJson(payload);
         request.setPayload(jsonBody, "application/json");
-        
+
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
-
 
     # Generates a response from the model given an input message.
     #
@@ -1139,15 +1138,15 @@ public isolated client class Client {
         map<anydata> headerValues = {};
         headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
         map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
-        
+
         http:Request request = new;
         if payload.fileSearchStoreId != () {
             resourcePath += "?file_search_store_id=" + payload.fileSearchStoreId.toString();
         }
-        
+
         json jsonBody = payload.fileSearchStore != () ? jsondata:toJson(payload.fileSearchStore) : {};
         request.setPayload(jsonBody, "application/json");
-        
+
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
 
@@ -1161,14 +1160,14 @@ public isolated client class Client {
         map<anydata> headerValues = {};
         headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
         map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
-        
+
         http:Request request = new;
         json jsonBody = jsondata:toJson(payload);
         request.setPayload(jsonBody, "application/json");
-        
+
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
-    
+
     # Uploads a file (simple media upload).
     #
     # + fileContent - The raw content of the file.
@@ -1177,7 +1176,7 @@ public isolated client class Client {
     # + return - The uploaded file resource wrapped in FileUploadResponse.
     remote isolated function filesUploadBytes(byte[] fileContent, string mimeType, string? displayName = ()) returns FileUploadResponse|error {
         string resourcePath = "/upload/v1beta/files?uploadType=media";
-        
+
         map<anydata> headerValues = {};
         headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
         headerValues["X-Goog-Upload-Protocol"] = "raw";
@@ -1186,10 +1185,10 @@ public isolated client class Client {
             headerValues["X-Goog-Upload-Header-Content-Disposition"] = string `attachment; filename="${displayName}"`;
         }
         map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
-        
+
         http:Request request = new;
         request.setBinaryPayload(fileContent);
-        
+
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
 
@@ -1203,11 +1202,11 @@ public isolated client class Client {
         map<anydata> headerValues = {};
         headerValues["x-goog-api-key"] = self.apiKeyConfig.xGoogAPIKey;
         map<string|string[]> httpHeaders = http:getHeaderMap(headerValues);
-        
+
         http:Request request = new;
         json jsonBody = jsondata:toJson(payload);
         request.setPayload(jsonBody, "application/json");
-        
+
         return self.clientEp->post(resourcePath, request, httpHeaders);
     }
 }

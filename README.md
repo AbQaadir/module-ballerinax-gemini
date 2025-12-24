@@ -24,6 +24,7 @@ The connector provides the following features
 
 - **[Image Understanding](#image-understanding):** Process and analyze images (multimodal capabilities).
 - **[Audio Understanding](#audio-understanding):** Process and analyze audio files (multimodal capabilities).
+- **[Video Understanding](#video-understanding):** Process and analyze video content from files or URLs.
 - **[Grounding with Google Search](#grounding-with-google-search):** Access real-time data with citations.
 - **[File Search (RAG)](#file-search-rag):** Retrieve relevant information from documents to answer questions.
 - **[Document Processing](#document-processing):** Process and analyze PDF documents.
@@ -1094,5 +1095,112 @@ if response is gemini:Interaction {
     }
 } else {
     io:println("Error creating interaction: ", response);
+}
+```
+
+## Video Understanding
+
+Gemini models can process videos to provide summaries, answer questions, and even extract detailed insights from specific timestamps. You can provide videos via direct file upload, inline data, or public YouTube URLs.
+
+### Method 1: YouTube URL Analysis
+
+You can directly pass a public YouTube URL to the model for analysis. This is the simplest way to get started.
+
+### Step 1: Configure the Request
+Provide the YouTube URL in the `fileUri` field of the `fileData` part.
+
+```ballerina
+string youtubeUrl = "https://youtube.com/shorts/48BnYG54694?si=l3-RgQaIsofOL1eV";
+
+gemini:GenerateContentRequest request = {
+    contents: [{
+        role: "user",
+        parts: [
+            {
+                fileData: {
+                    mimeType: "video/mp4",
+                    fileUri: youtubeUrl
+                }
+            },
+            {
+                text: "Summarize this video and create a quiz."
+            }
+        ]
+    }]
+};
+```
+
+### Step 2: Invoke the API
+Call the API normally.
+
+```ballerina
+gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash", request);
+```
+
+### Method 2: Timestamp-Based Querying
+
+You can ask questions about specific moments in the video using `MM:SS` format.
+
+```ballerina
+gemini:GenerateContentRequest request = {
+    contents: [{
+        role: "user",
+        parts: [
+            { fileData: { mimeType: "video/mp4", fileUri: youtubeUrl } },
+            { text: "What happens at 00:05?" }
+        ]
+    }]
+};
+```
+
+### Method 3: Video Clipping & Metadata
+
+You can process only a specific segment of a video or control the frame rate using `VideoMetadata`.
+
+```ballerina
+gemini:GenerateContentRequest request = {
+    contents: [{
+        role: "user",
+        parts: [
+            {
+                fileData: {
+                    mimeType: "video/mp4",
+                    fileUri: youtubeUrl
+                },
+                videoMetadata: {
+                    startOffset: "0s",
+                    endOffset: "5s"
+                }
+            },
+            { text: "Describe the action in this specific clip." }
+        ]
+    }]
+};
+```
+
+### Method 4: File Upload (For Local Files)
+
+For local video files, upload them using the Files API first.
+
+```ballerina
+// 1. Upload the video file
+byte[] videoBytes = check io:fileReadBytes("resources/sample.mp4");
+gemini:FileUploadResponse uploadResponse = check geminiClient->filesUploadBytes(videoBytes, "video/mp4", displayName = "sample.mp4");
+
+if uploadResponse.file is gemini:File {
+    gemini:File uploadedFile = <gemini:File>uploadResponse.file;
+
+    // 2. Generate content using the uploaded file URI
+    gemini:GenerateContentRequest request = {
+        contents: [{
+            role: "user",
+            parts: [
+                { fileData: { mimeType: "video/mp4", fileUri: uploadedFile.uri } },
+                { text: "Summarize this video." }
+            ]
+        }]
+    };
+    
+    // Invoke API...
 }
 ```
