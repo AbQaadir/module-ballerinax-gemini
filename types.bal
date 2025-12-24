@@ -2263,7 +2263,7 @@ public type GenerationConfig record {
     # error will be returned.
     #
     # An empty list is equivalent to requesting only text.
-    int[] responseModalities?;
+    string[] responseModalities?;
     # Optional. The speech generation config.
     SpeechConfig speechConfig?;
     # Optional. Config for thinking features.
@@ -2536,6 +2536,8 @@ public type ThinkingConfig record {
     boolean includeThoughts?;
     # The number of thoughts tokens that the model should generate.
     int:Signed32 thinkingBudget?;
+    # Optional. The thinking level.
+    string thinkingLevel?;
 };
 
 # Represents the Queries record for the operation: cacheServiceUpdateCachedContent

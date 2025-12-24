@@ -2,24 +2,41 @@
 
 The Ballerina Gemini Connector provides a seamless interface to interact with the Google Gemini API, enabling developers to integrate advanced generative AI capabilities into their Ballerina applications.
 
-## Features
 
-The connector provides the following features:
+#  Features
+
+The connector provides the following features
+
+## Core Features
 
 - **[Generate Content](#generate-content):** Generate text responses using Gemini models.
 - **[Structured Output](#structured-output-json):** Generate JSON responses with defined schemas.
 - **[Function Calling](#function-calling):** Connect models to external tools and APIs.
-- **[Image Understanding](#image-understanding):** Process and analyze images (multimodal capabilities).
-- **[Image Generation](#image-generation):** Generate images using Gemini models.
-- **[Document Processing](#document-processing):** Process and analyze PDF documents.
-- **[Grounding with Google Search](#grounding-with-google-search):** Access real-time data with citations.
-- **[Code Execution](#code-execution):** Generate and run Python code for complex tasks.
-- **[Grounding with Google Maps](#grounding-with-google-maps):** Ground responses in real-world data using Google Maps.
-- **[URL Context](#url-context):** Provide context via URLs for the model to access.
-- **[Interactions API](#interactions-api):** Multi-turn conversations and stateful interactions with models and agents.
-- **[File Search](#file-search):** Retrieve relevant information from documents to answer questions (Retrieval Augmented Generation).
-- **[Computer Use](#computer-use):** Simulate browser interactions and actions.
+- **[Thinking Capability](#thinking-capability):** Display the model's thought process before providing a final response.
 
+
+## Generative Media
+
+- **[Image Generation](#image-generation):** Generate images using Gemini models.
+- **[Speech Generation](#speech-generation):** Convert text to speech with single or multiple speakers.
+
+## Knowledge & Grounding
+
+- **[Image Understanding](#image-understanding):** Process and analyze images (multimodal capabilities).
+- **[Audio Understanding](#audio-understanding):** Process and analyze audio files (multimodal capabilities).
+- **[Grounding with Google Search](#grounding-with-google-search):** Access real-time data with citations.
+- **[File Search (RAG)](#file-search-rag):** Retrieve relevant information from documents to answer questions.
+- **[Document Processing](#document-processing):** Process and analyze PDF documents.
+- **[URL Context](#url-context):** Provide context via URLs for the model to access.
+- **[Grounding with Google Maps](#grounding-with-google-maps):** Ground responses in real-world location data.
+
+
+## Agentic Capabilities
+
+- **[Code Execution](#code-execution):** Generate and run Python code for complex tasks.
+- **[Computer Use](#computer-use):** Simulate computer interactions with screen processing and action execution.
+- **[Interactions API](#interactions-api):** Manage multi-turn conversations and stateful interactions.
+---
 
 # Quickstart Guide
 
@@ -228,6 +245,62 @@ if candidates is gemini:Candidate[] && candidates.length() > 0 {
 }
 ```
 
+
+## Thinking Capability
+
+The Thinking API allows the model to display its "thought process" before providing a final response. This brings transparency to the model's reasoning.
+
+### Basic Thinking with Budget
+
+You can enable thinking and set a `thinkingBudget` (token limit) to control how much "effort" the model spends on reasoning. This is supported by `gemini-2.5-flash` and other 2.5/3.0 models.
+
+```ballerina
+// Initialize the Gemini Client as usual
+gemini:Client geminiClient = check new ({
+    xGoogAPIKey: geminiAPIKey
+});
+
+gemini:GenerateContentRequest thinkingRequest = {
+    contents: [{
+        role: "user",
+        parts: [{ text: "Explain how a bicycle works." }]
+    }],
+    generationConfig: {
+        thinkingConfig: {
+            includeThoughts: true,
+            thinkingBudget: 1024 
+        }
+    }
+};
+
+gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash", thinkingRequest);
+```
+
+### Retrieving Thoughts
+
+The model returns thoughts as separate `Part`s marked with a `thought` boolean.
+
+```ballerina
+if response.candidates is gemini:Candidate[] {
+    gemini:Candidate candidate = (<gemini:Candidate[]>response.candidates)[0];
+    if candidate.content?.parts is gemini:Part[] {
+        gemini:Part[] parts = <gemini:Part[]>candidate.content?.parts;
+        foreach gemini:Part part in parts {
+            if part.thought ?: false {
+                io:println("[Thought]: ", part.text);
+            } else {
+                io:println("[Response]: ", part.text);
+            }
+        }
+    }
+    
+    // Check token usage for thoughts
+    if response.usageMetadata is gemini:GenerateContentResponse_UsageMetadata {
+        io:println("Thoughts Tokens: ", response.usageMetadata?.thoughtsTokenCount);
+    }
+}
+```
+
 ## Image Understanding
 
 Gemini models are multimodal and can process images. You can pass image data inline (Base64 encoded) or via file URIs.
@@ -348,6 +421,185 @@ if candidates is gemini:Candidate[] && candidates.length() > 0 {
 }
 ```
 
+## Audio Understanding
+
+Gemini 1.5 Pro and Flash models can digest audio data directly for analysis, transcription, and summarization. You can provide audio inline (Base64) or via file uploads.
+
+### Inline Audio
+Pass short audio clips directly in the request using Base64 encoding.
+
+```ballerina
+import ballerina/io;
+import ballerina/lang.array;
+
+// Read and encode audio file
+string audioPath = "resources/sample.mp3";
+byte[] audioBytes = check io:fileReadBytes(audioPath);
+string base64Audio = array:toBase64(audioBytes);
+
+gemini:GenerateContentRequest request = {
+    contents: [{
+        role: "user",
+        parts: [{
+            inlineData: {
+                mimeType: "audio/mp3",
+                data: base64Audio
+            }
+        }, {
+            text: "Transcribe this audio."
+        }]
+    }]
+};
+
+gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash", request);
+```
+
+### File Upload (Large Audio)
+For larger files, upload the audio first using the Files API and then reference the URI.
+
+```ballerina
+// 1. Upload the file
+gemini:FileUploadResponse uploadResponse = check geminiClient->filesUploadBytes(audioBytes, "audio/mp3", displayName = "sample.mp3");
+
+if uploadResponse.file is gemini:File {
+    gemini:File uploadedFile = <gemini:File>uploadResponse.file;
+    
+    // 2. Generate content using the file URI
+    gemini:GenerateContentRequest request = {
+        contents: [{
+            role: "user",
+            parts: [{
+                fileData: {
+                    mimeType: "audio/mp3",
+                    fileUri: uploadedFile.uri
+                }
+            }, {
+                text: "Summarize this podcast."
+            }]
+        }]
+    };
+
+    gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash", request);
+}
+```
+
+### Audio Token Counting
+Count the tokens in your audio file to manage costs and context window usage.
+
+```ballerina
+gemini:CountTokensRequest tokenRequest = {
+    model: "models/gemini-2.5-flash",
+    contents: [{
+        parts: [{
+            inlineData: {
+                    mimeType: "audio/mp3",
+                    data: base64Audio
+            }
+        }]
+    }]
+};
+
+gemini:CountTokensResponse tokenResponse = check geminiClient->generativeServiceCountTokens("gemini-2.5-flash", tokenRequest);
+io:println("Total Tokens: " + (tokenResponse.totalTokens ?: 0).toString());
+```
+
+
+## Speech Generation
+
+Gemini 2.5 Flash and Pro models support generating speech from text prompts. You can control the voice, language, and even simulate multi-speaker conversations.
+
+> **Note:** The `responseModalities` in `GenerationConfig` must be set to `["AUDIO"]` to receive audio output.
+
+### Configuration
+
+The `SpeechConfig` is used within `GenerationConfig` to specify voice settings.
+
+```ballerina
+gemini:GenerationConfig genConfig = {
+    responseModalities: ["AUDIO"],
+    speechConfig: {
+        voiceConfig: {
+            prebuiltVoiceConfig: {
+                // Available voices: "Puck", "Charon", "Kore", "Fenrir", "Aoede", etc.
+                voiceName: "Kore" 
+            }
+        }
+    }
+};
+```
+
+### Single Speaker Example
+
+This example demonstrates how to generate speech using a single prebuilt voice and save the output to a WAV file.
+
+```ballerina
+gemini:GenerateContentRequest request = {
+    contents: [{
+        role: "user",
+        parts: [{text: "Hello! This is a test of Gemini Speech Generation."}]
+    }],
+    generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+            voiceConfig: {
+                prebuiltVoiceConfig: {
+                    voiceName: "Kore"
+                }
+            }
+        }
+    }
+};
+
+gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash-preview", request);
+
+// Extract and Save Audio
+if response.candidates is gemini:Candidate[] && response.candidates.length() > 0 {
+    gemini:Part[]? parts = response.candidates[0].content?.parts;
+    if parts is gemini:Part[] {
+        foreach var part in parts {
+            if part.inlineData is gemini:Blob {
+                string? base64Data = part.inlineData?.data;
+                if base64Data is string {
+                     byte[] audioBytes = check array:fromBase64(base64Data);
+                     check io:fileWriteBytes("./output-single.wav", audioBytes);
+                     io:println("Single speaker audio saved to ./output-single.wav");
+                }
+            }
+        }
+    }
+}
+```
+
+### Multi-Speaker Example
+
+You can also simulate a conversation between multiple speakers by defining a `MultiSpeakerVoiceConfig`.
+
+```ballerina
+gemini:GenerateContentRequest multiSpeakerRequest = {
+    contents: [{
+        role: "user",
+        parts: [{text: "Speaker A: Hello!\nSpeaker B: Hi there, how can I help?"}]
+    }],
+    generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+            multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [
+                    {
+                        speaker: "Speaker A",
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
+                    },
+                    {
+                        speaker: "Speaker B",
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } }
+                    }
+                ]
+            }
+        }
+    }
+};
+```
+
 ## Document Processing
 
 Gemini can process and analyze PDF documents.
@@ -453,57 +705,80 @@ if candidates is gemini:Candidate[] && candidates.length() > 0 {
 }
 ```
 
-## Code Execution
+## File Search (RAG)
 
-The model can generate and execute Python code to answer complex questions (e.g., math, data analysis).
+File Search allows you to create a store of documents (PDFs, text files, etc.) and have the model retrieve relevant information from them to answer questions (Retrieval Augmented Generation).
 
-### Step 1: Define the Code Execution Tool
-Enable the Code Execution tool.
+### Step 1: Upload a File
+First, upload the file you want to search.
 
 ```ballerina
-gemini:Tool codeTool = {
-    codeExecution: {}
-};
+import ballerina/io;
+
+// Read file content
+ byte[] fileBytes = check io:fileReadBytes("policy.pdf");
+
+// Upload file (returns a FileUploadResponse wrapping a FileResource)
+gemini:FileUploadResponse uploadResp = check geminiClient->filesUploadBytes(fileBytes, "application/pdf", "policy.pdf");
+gemini:FileResource fileResource = uploadResp.file;
+io:println("File URI: ", fileResource.uri);
 ```
 
-### Step 2: Configure the Request
-Pass the tool in your request.
+### Step 2: Create a File Search Store
+Create a logical store to hold your files.
 
 ```ballerina
-gemini:GenerateContentRequest request = {
-    contents: [
-        {
-            role: "user",
-            parts: [{text: "Sum the first 50 prime numbers."}]
-        }
-    ],
-    tools: [codeTool]
-};
-```
-
-### Step 3: Invoke the API and Handle Execution Results
-The response contains both the generated code and the execution result.
-
-```ballerina
-gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash", request);
-
-gemini:Candidate[]? candidates = response.candidates;
-if candidates is gemini:Candidate[] && candidates.length() > 0 {
-    gemini:Part[]? parts = candidates[0].content?.parts;
-    if parts is gemini:Part[] {
-        foreach gemini:Part part in parts {
-             // Print generated code
-             if part.executableCode is gemini:ExecutableCode {
-                 gemini:ExecutableCode exeCode = <gemini:ExecutableCode>part.executableCode;
-                 io:println("Generated Code: ", exeCode.code);
-             }
-             // Print execution result
-             if part.codeExecutionResult is gemini:CodeExecutionResult {
-                 gemini:CodeExecutionResult execResult = <gemini:CodeExecutionResult>part.codeExecutionResult;
-                 io:println("Result: ", execResult.output);
-             }
-        }
+gemini:CreateFileSearchStoreRequest storeRequest = {
+    fileSearchStore: {
+        displayName: "Company Policies"
     }
+};
+
+gemini:FileSearchStore store = check geminiClient->fileSearchStoresCreate(storeRequest);
+string storeName = store.name ?: "";
+```
+
+### Step 3: Import File into Store
+Link the uploaded file to the store. This starts the ingestion process.
+
+```ballerina
+gemini:ImportFileRequest importRequest = {
+    fileName: fileResource.name ?: ""
+};
+
+// Returns an Operation (LRO)
+gemini:ImportFileOperation operation = check geminiClient->fileSearchStoresImportFile(storeName, importRequest);
+
+// Wait for ingestion (simplified for example; in production, consider polling)
+runtime:sleep(10.0); 
+```
+
+### Step 4: Query with File Search Tool
+Generate content using the `fileSearch` tool pointing to your store.
+
+```ballerina
+// Define the File Search tool
+gemini:ToolWithFileSearch fileSearchTool = {
+    fileSearch: {
+        fileSearchStoreNames: [storeName]
+    }
+};
+
+// Create the request
+gemini:GenerateContentRequestWithFileSearch genRequest = {
+    model: "gemini-1.5-pro",
+    contents: [{
+        parts: [{text: "What is the policy on remote work?"}]
+    }],
+    tools: [fileSearchTool]
+};
+
+// Invoke the API
+gemini:GenerateContentResponse response = check geminiClient->generateContentWithFileSearch("gemini-1.5-pro", genRequest);
+
+// Correctly handle the response
+if response.candidates is gemini:Candidate[] && response.candidates.length() > 0 {
+     io:println("Answer: ", response.candidates[0].content?.parts[0].text);
 }
 ```
 
@@ -638,136 +913,57 @@ if candidates is gemini:Candidate[] && candidates.length() > 0 {
 }
 ```
 
-## Interactions API
+## Code Execution
 
-The Interactions API allows for multi-turn conversations and stateful interactions with models and agents.
+The model can generate and execute Python code to answer complex questions (e.g., math, data analysis).
 
-### Step 1: Initialize the Client
-Initialize the `gemini:Client` with your API key.
-
-```ballerina
-configurable string geminiAPIKey = ?;
-
-gemini:Client geminiClient = check new ({
-    xGoogAPIKey: geminiAPIKey
-});
-```
-
-### Step 2: Create the Interaction Request
-Define the `CreateInteractionRequest` with the model and input.
+### Step 1: Define the Code Execution Tool
+Enable the Code Execution tool.
 
 ```ballerina
-gemini:CreateInteractionRequest request = {
-    model: "gemini-3-flash-preview", 
-    input: "Tell me a short joke about programming."
+gemini:Tool codeTool = {
+    codeExecution: {}
 };
 ```
 
-### Step 3: Invoke the Interactions API
-Call the `interactionsCreate` method on the client.
+### Step 2: Configure the Request
+Pass the tool in your request.
 
 ```ballerina
-gemini:Interaction|error response = geminiClient->interactionsCreate(request);
+gemini:GenerateContentRequest request = {
+    contents: [
+        {
+            role: "user",
+            parts: [{text: "Sum the first 50 prime numbers."}]
+        }
+    ],
+    tools: [codeTool]
+};
 ```
 
-### Step 4: Handle the Response
-Process the response to retrieve the generated content.
+### Step 3: Invoke the API and Handle Execution Results
+The response contains both the generated code and the execution result.
 
 ```ballerina
-if response is gemini:Interaction {
-    io:println("Interaction Created Successfully!");
-    io:println("Interaction ID: ", response.id);
-    
-    // Print the output text
-    gemini:Content[]? outputs = response.outputs;
-    if outputs is gemini:Content[] && outputs.length() > 0 {
-         foreach var output in outputs {
-             foreach var part in output.parts ?: [] {
-                 if part.text != () {
-                     io:println("Model Response: ", part.text);
-                 }
+gemini:GenerateContentResponse response = check geminiClient->generativeServiceGenerateContent("gemini-2.5-flash", request);
+
+gemini:Candidate[]? candidates = response.candidates;
+if candidates is gemini:Candidate[] && candidates.length() > 0 {
+    gemini:Part[]? parts = candidates[0].content?.parts;
+    if parts is gemini:Part[] {
+        foreach gemini:Part part in parts {
+             // Print generated code
+             if part.executableCode is gemini:ExecutableCode {
+                 gemini:ExecutableCode exeCode = <gemini:ExecutableCode>part.executableCode;
+                 io:println("Generated Code: ", exeCode.code);
              }
-         }
+             // Print execution result
+             if part.codeExecutionResult is gemini:CodeExecutionResult {
+                 gemini:CodeExecutionResult execResult = <gemini:CodeExecutionResult>part.codeExecutionResult;
+                 io:println("Result: ", execResult.output);
+             }
+        }
     }
-} else {
-    io:println("Error creating interaction: ", response);
-}
-```
-
-## File Search (RAG)
-
-File Search allows you to create a store of documents (PDFs, text files, etc.) and have the model retrieve relevant information from them to answer questions (Retrieval Augmented Generation).
-
-### Step 1: Upload a File
-First, upload the file you want to search.
-
-```ballerina
-import ballerina/io;
-
-// Read file content
- byte[] fileBytes = check io:fileReadBytes("policy.pdf");
-
-// Upload file (returns a FileUploadResponse wrapping a FileResource)
-gemini:FileUploadResponse uploadResp = check geminiClient->filesUploadBytes(fileBytes, "application/pdf", "policy.pdf");
-gemini:FileResource fileResource = uploadResp.file;
-io:println("File URI: ", fileResource.uri);
-```
-
-### Step 2: Create a File Search Store
-Create a logical store to hold your files.
-
-```ballerina
-gemini:CreateFileSearchStoreRequest storeRequest = {
-    fileSearchStore: {
-        displayName: "Company Policies"
-    }
-};
-
-gemini:FileSearchStore store = check geminiClient->fileSearchStoresCreate(storeRequest);
-string storeName = store.name ?: "";
-```
-
-### Step 3: Import File into Store
-Link the uploaded file to the store. This starts the ingestion process.
-
-```ballerina
-gemini:ImportFileRequest importRequest = {
-    fileName: fileResource.name ?: ""
-};
-
-// Returns an Operation (LRO)
-gemini:ImportFileOperation operation = check geminiClient->fileSearchStoresImportFile(storeName, importRequest);
-
-// Wait for ingestion (simplified for example; in production, consider polling)
-runtime:sleep(10.0); 
-```
-
-### Step 4: Query with File Search Tool
-Generate content using the `fileSearch` tool pointing to your store.
-
-```ballerina
-// Define the File Search tool
-gemini:ToolWithFileSearch fileSearchTool = {
-    fileSearch: {
-        fileSearchStoreNames: [storeName]
-    }
-};
-
-// Create the request
-gemini:GenerateContentRequestWithFileSearch genRequest = {
-    model: "gemini-1.5-pro",
-    contents: [{
-        parts: [{text: "What is the policy on remote work?"}]
-    }],
-    tools: [fileSearchTool]
-};
-
-// Invoke the API
-gemini:GenerateContentResponse response = check geminiClient->generateContentWithFileSearch("gemini-1.5-pro", genRequest);
-
-// Correctly handle the response
-if response.candidates is gemini:Candidate[] && response.candidates.length() > 0 {
-     io:println("Answer: ", response.candidates[0].content?.parts[0].text);
 }
 ```
 
@@ -840,12 +1036,63 @@ foreach int i in 0 ..< turnLimit {
     gemini:Candidate[]? candidates = response.candidates;
     if candidates is gemini:Candidate[] && candidates.length() > 0 {
          // ... Extract FunctionCall, Execute Action, and Append to History ...
-         // See `main-computer-use.bal` for the full loop implementation.
     }
 }
 ```
 
-Run the full example:
-```bash
-bal run main-computer-use.bal
+
+## Interactions API
+
+The Interactions API allows for multi-turn conversations and stateful interactions with models and agents.
+
+### Step 1: Initialize the Client
+Initialize the `gemini:Client` with your API key.
+
+```ballerina
+configurable string geminiAPIKey = ?;
+
+gemini:Client geminiClient = check new ({
+    xGoogAPIKey: geminiAPIKey
+});
+```
+
+### Step 2: Create the Interaction Request
+Define the `CreateInteractionRequest` with the model and input.
+
+```ballerina
+gemini:CreateInteractionRequest request = {
+    model: "gemini-3-flash-preview", 
+    input: "Tell me a short joke about programming."
+};
+```
+
+### Step 3: Invoke the Interactions API
+Call the `interactionsCreate` method on the client.
+
+```ballerina
+gemini:Interaction|error response = geminiClient->interactionsCreate(request);
+```
+
+### Step 4: Handle the Response
+Process the response to retrieve the generated content.
+
+```ballerina
+if response is gemini:Interaction {
+    io:println("Interaction Created Successfully!");
+    io:println("Interaction ID: ", response.id);
+    
+    // Print the output text
+    gemini:Content[]? outputs = response.outputs;
+    if outputs is gemini:Content[] && outputs.length() > 0 {
+         foreach var output in outputs {
+             foreach var part in output.parts ?: [] {
+                 if part.text != () {
+                     io:println("Model Response: ", part.text);
+                 }
+             }
+         }
+    }
+} else {
+    io:println("Error creating interaction: ", response);
+}
 ```

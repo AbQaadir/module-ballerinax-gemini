@@ -1,7 +1,7 @@
 [package]
 org = "qaadir"
 name = "gemini"
-version = "3.5.1"
+version = "3.5.5"
 distribution = "2201.13.1"
 authors = ["Qaadir"]
 keywords = ["Gemini", "AI", "Google", "Rag", "Agent", "llm"]
